@@ -24,3 +24,9 @@ esbuild.js
 **/*.map
 **/*.ts
 !dist/**
+docs/**
+.commitrrc.example
+CHANGELOG.md
+**/*.map
+**/*.ts
+!dist/**
