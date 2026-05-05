@@ -7,11 +7,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/shifali/commitr"
+    "url": "https://github.com/shifalix1/commitr"
   },
-  "homepage": "https://github.com/shifali/commitr#readme",
+  "homepage": "https://github.com/shifalix1/commitr#readme",
   "bugs": {
-    "url": "https://github.com/shifali/commitr/issues"
+    "url": "https://github.com/shifalix1/commitr/issues"
   },
   "engines": {
     "vscode": "^1.80.0"
@@ -38,7 +38,7 @@
       {
         "command": "commitr.generateMessage",
         "title": "Commitr: Generate Commit Message",
-        "icon": "$(git-commit)"
+        "icon": "$(heart)"
       }
     ],
     "keybindings": [
@@ -55,6 +55,12 @@
           "command": "commitr.generateMessage",
           "group": "navigation",
           "when": "scmProvider == git"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "commitr.generateMessage",
+          "group": "navigation"
         }
       ],
       "commandPalette": [

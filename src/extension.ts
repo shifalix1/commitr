@@ -1,10 +1,12 @@
 import * as vscode from "vscode";
 import { exec } from "child_process";
 import { promisify } from "util";
+import * as fs from "fs";
+import * as path from "path";
 
 const execAsync = promisify(exec);
 
-// Config
+// Config 
 
 interface CommitrConfig {
   ollamaUrl: string;
@@ -12,23 +14,62 @@ interface CommitrConfig {
   generateBody: boolean;
   scopeMappings: Record<string, string>;
   commitStyle: "conventional" | "freeform";
+  source?: "vscode" | ".commitrrc"; // for status bar tooltip
 }
 
-function getConfig(): CommitrConfig {
-  const cfg = vscode.workspace.getConfiguration("commitr");
+interface CommitRc {
+  model?: string;
+  generateBody?: boolean;
+  scopeMappings?: Record<string, string>;
+  commitStyle?: "conventional" | "freeform";
+}
+
+function loadCommitRc(repoPath: string): CommitRc | null {
+  const rcPath = path.join(repoPath, ".commitrrc");
+  try {
+    if (!fs.existsSync(rcPath)) {
+      return null;
+    }
+    const raw = fs.readFileSync(rcPath, "utf8");
+    const parsed = JSON.parse(raw) as CommitRc;
+    return parsed;
+  } catch {
+    // malformed .commitrrc — warn and fall back to VS Code settings
+    vscode.window.showWarningMessage(
+      "Commitr: .commitrrc found but could not be parsed. Falling back to VS Code settings."
+    );
+    return null;
+  }
+}
+
+function getConfig(repoPath: string): CommitrConfig {
+  const vsCfg = vscode.workspace.getConfiguration("commitr");
+  const rc = loadCommitRc(repoPath);
+
+  if (rc) {
+    // .commitrrc exists — merge: rc values override VS Code settings
+    // ollamaUrl is always from VS Code settings (personal, not committed to repo)
+    return {
+      ollamaUrl: vsCfg.get<string>("ollamaUrl", "http://localhost:11434"),
+      model: rc.model ?? vsCfg.get<string>("model", "qwen2.5:3b"),
+      generateBody: rc.generateBody ?? vsCfg.get<boolean>("generateBody", true),
+      scopeMappings: rc.scopeMappings ?? vsCfg.get<Record<string, string>>("scopeMappings", {}),
+      commitStyle: rc.commitStyle ?? vsCfg.get<"conventional" | "freeform">("commitStyle", "conventional"),
+      source: ".commitrrc",
+    };
+  }
+
   return {
-    ollamaUrl: cfg.get<string>("ollamaUrl", "http://localhost:11434"),
-    model: cfg.get<string>("model", "qwen2.5:3b"),
-    generateBody: cfg.get<boolean>("generateBody", true),
-    scopeMappings: cfg.get<Record<string, string>>("scopeMappings", {}),
-    commitStyle: cfg.get<"conventional" | "freeform">(
-      "commitStyle",
-      "conventional",
-    ),
+    ollamaUrl: vsCfg.get<string>("ollamaUrl", "http://localhost:11434"),
+    model: vsCfg.get<string>("model", "qwen2.5:3b"),
+    generateBody: vsCfg.get<boolean>("generateBody", true),
+    scopeMappings: vsCfg.get<Record<string, string>>("scopeMappings", {}),
+    commitStyle: vsCfg.get<"conventional" | "freeform">("commitStyle", "conventional"),
+    source: "vscode",
   };
 }
 
-// Prompt
+// Prompt 
 
 function buildPrompt(diff: string, cfg: CommitrConfig): string {
   const customMappingLines = Object.entries(cfg.scopeMappings)
@@ -42,8 +83,8 @@ function buildPrompt(diff: string, cfg: CommitrConfig): string {
   const bodyInstruction = cfg.generateBody
     ? `BODY (optional — only for diffs spanning 3+ files or significant logic changes):
 - Add a blank line after subject, then 1-2 sentences explaining WHY
+- No emdashes
 - Max 72 chars per line
-- No em dashes or bullet points — just plain text
 - If diff is small or self-explanatory, omit body entirely`
     : `Do NOT add a body. Subject line only.`;
 
@@ -65,9 +106,9 @@ TYPES — pick one:
 SCOPE — infer from changed file paths:
   - Single dominant directory → use its name  (src/auth/login.ts → auth)
   - client/components/ or src/components/    → ui
-  - client/pages/ or src/pages/              → pages
-  - Root-level config files                  → omit scope
-  - Multiple unrelated directories           → omit scope
+  - client/pages/ or src/pages/             → pages
+  - Root-level config files                 → omit scope
+  - Multiple unrelated directories          → omit scope
 ${customMappingLines ? `\nCUSTOM MAPPINGS (highest priority, override above):\n${customMappingLines}` : ""}
 
 SUBJECT RULES:
@@ -101,7 +142,7 @@ NOW generate the commit message for this diff:
 ${diff}`;
 }
 
-// Git
+// Git 
 
 type DiffError = "not_a_repo" | "git_not_found" | "exec_failed";
 
@@ -116,7 +157,7 @@ async function getStagedDiff(repoPath: string): Promise<DiffResult> {
     const { stdout } = await execAsync("git diff --cached --no-color", {
       cwd: repoPath,
       timeout: 10_000,
-      maxBuffer: 1024 * 1024 * 5, // 5 MB
+      maxBuffer: 1024 * 1024 * 5,
     });
 
     const raw = stdout.trim();
@@ -126,7 +167,6 @@ async function getStagedDiff(repoPath: string): Promise<DiffResult> {
 
     const fileCount = (raw.match(/^diff --git /gm) ?? []).length;
 
-    // Truncate cleanly at a line boundary
     const MAX_CHARS = 12_000;
     let truncated = raw;
     if (raw.length > MAX_CHARS) {
@@ -152,7 +192,7 @@ async function getStagedDiff(repoPath: string): Promise<DiffResult> {
   }
 }
 
-// Custom errors
+// Custom errors 
 
 class ModelNotFoundError extends Error {
   constructor(public model: string) {
@@ -161,15 +201,13 @@ class ModelNotFoundError extends Error {
   }
 }
 
-// Ollama
+// Ollama 
 
 async function checkOllamaHealth(baseUrl: string): Promise<boolean> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5_000);
   try {
-    const res = await fetch(`${baseUrl}/api/tags`, {
-      signal: controller.signal,
-    });
+    const res = await fetch(`${baseUrl}/api/tags`, { signal: controller.signal });
     return res.ok;
   } catch {
     return false;
@@ -181,11 +219,11 @@ async function checkOllamaHealth(baseUrl: string): Promise<boolean> {
 async function callOllama(
   prompt: string,
   cfg: CommitrConfig,
-  cancelToken: vscode.CancellationToken,
+  cancelToken: vscode.CancellationToken
 ): Promise<string> {
   const controller = new AbortController();
   const disposeCancel = cancelToken.onCancellationRequested(() =>
-    controller.abort(),
+    controller.abort()
   );
 
   try {
@@ -201,7 +239,7 @@ async function callOllama(
           temperature: 0.2,
           top_p: 0.9,
           num_predict: 150,
-          stop: ["\n\n\n"], // allow one blank line (body) but stop at triple newline
+          stop: ["\n\n\n"],
         },
       }),
     });
@@ -221,58 +259,36 @@ async function callOllama(
   }
 }
 
-// Output parsing & validation
+// Output parsing & validation 
 
 function parseOutput(raw: string): { subject: string; body: string } {
   const lines = raw.trim().split("\n");
   let subject = lines[0].trim();
-
-  // Strip wrapping quotes or backticks the model might add
   subject = subject.replace(/^["'`]|["'`]$/g, "").trim();
 
-  // Collect body: everything after the first blank line
   const blankIdx = lines.findIndex((l, i) => i > 0 && l.trim() === "");
   const body =
     blankIdx !== -1
-      ? lines
-          .slice(blankIdx + 1)
-          .join("\n")
-          .trim()
+      ? lines.slice(blankIdx + 1).join("\n").trim()
       : "";
 
   return { subject, body };
 }
 
 function isValidConventionalCommit(subject: string): boolean {
-  // type(scope): subject  OR  type: subject  OR  type!: subject (breaking)
   return /^[a-z]+(\([a-z0-9/_-]+\))?!?: .{1,72}$/.test(subject);
 }
 
-// SCM integration
+// Terminal write 
 
-function findRepo(repoPath: string) {
-  const gitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
-  const git = gitExtension?.getAPI(1);
-  if (!git) {
-    return null;
-  }
-  // Prefer repo whose root matches current workspace; fall back to first
-  return (
-    git.repositories.find((r: { rootUri: vscode.Uri }) =>
-      repoPath.startsWith(r.rootUri.fsPath),
-    ) ??
-    git.repositories[0] ??
-    null
-  );
-}
-
-function writeToScmBox(message: string, repoPath: string): boolean {
-  const repo = findRepo(repoPath);
-  if (!repo) {
-    return false;
-  }
-  repo.inputBox.value = message;
-  return true;
+function writeToTerminal(message: string): void {
+  const terminal =
+    vscode.window.activeTerminal ??
+    vscode.window.createTerminal({ name: "Commitr" });
+  terminal.show(true); // true = don't steal focus
+  // Escape double quotes in message to avoid shell injection
+  const escaped = message.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  terminal.sendText(`git commit -m "${escaped}"`);
 }
 
 // Status bar
@@ -283,40 +299,40 @@ function getStatusBar(): vscode.StatusBarItem {
   if (!statusBarItem) {
     statusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Left,
-      100,
+      100
     );
     statusBarItem.command = "commitr.generateMessage";
-    statusBarItem.tooltip = "Commitr: Generate commit message";
   }
   return statusBarItem;
 }
 
-function setStatusBar(state: "idle" | "generating" | "error") {
+function setStatusBar(state: "idle" | "generating" | "error", source?: string) {
   const bar = getStatusBar();
+  const sourceLabel = source === ".commitrrc" ? " [.commitrrc]" : "";
+
   switch (state) {
     case "idle":
       bar.text = "$(git-commit) Commitr";
+      bar.tooltip = `Commitr: Generate commit message${sourceLabel}`;
       bar.backgroundColor = undefined;
       break;
     case "generating":
       bar.text = "$(sync~spin) Commitr";
+      bar.tooltip = `Commitr: Generating…${sourceLabel}`;
       bar.backgroundColor = undefined;
       break;
     case "error":
       bar.text = "$(git-commit) Commitr";
-      bar.backgroundColor = new vscode.ThemeColor(
-        "statusBarItem.errorBackground",
-      );
+      bar.tooltip = `Commitr: Error — click to retry${sourceLabel}`;
+      bar.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
       break;
   }
   bar.show();
 }
 
-// Main command
+// Main command 
 
 async function runCommitr() {
-  const cfg = getConfig();
-
   // Workspace check
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders?.length) {
@@ -325,24 +341,27 @@ async function runCommitr() {
   }
   const repoPath = workspaceFolders[0].uri.fsPath;
 
+  // Load config — .commitrrc takes priority over VS Code settings
+  const cfg = getConfig(repoPath);
+
   // Ollama health check
   const ollamaRunning = await checkOllamaHealth(cfg.ollamaUrl);
   if (!ollamaRunning) {
-    setStatusBar("error");
+    setStatusBar("error", cfg.source);
     const action = await vscode.window.showErrorMessage(
       `Commitr: Ollama is not running at ${cfg.ollamaUrl}.`,
       "Copy Fix",
-      "Open Settings",
+      "Open Settings"
     );
     if (action === "Copy Fix") {
       await vscode.env.clipboard.writeText("ollama serve");
       vscode.window.showInformationMessage(
-        'Commitr: Copied "ollama serve" to clipboard.',
+        'Commitr: Copied "ollama serve" to clipboard.'
       );
     } else if (action === "Open Settings") {
       vscode.commands.executeCommand(
         "workbench.action.openSettings",
-        "commitr.ollamaUrl",
+        "commitr.ollamaUrl"
       );
     }
     return;
@@ -352,37 +371,29 @@ async function runCommitr() {
   const { diff, fileCount, error } = await getStagedDiff(repoPath);
 
   if (error === "not_a_repo") {
-    vscode.window.showErrorMessage(
-      "Commitr: This folder is not a git repository.",
-    );
+    vscode.window.showErrorMessage("Commitr: This folder is not a git repository.");
     return;
   }
   if (error === "git_not_found") {
-    vscode.window.showErrorMessage(
-      "Commitr: git is not installed or not on PATH.",
-    );
+    vscode.window.showErrorMessage("Commitr: git is not installed or not on PATH.");
     return;
   }
   if (error === "exec_failed") {
-    vscode.window.showErrorMessage(
-      "Commitr: Failed to read staged diff. Check the terminal for details.",
-    );
+    vscode.window.showErrorMessage("Commitr: Failed to read staged diff. Check the terminal for details.");
     return;
   }
   if (!diff) {
-    vscode.window.showWarningMessage(
-      "Commitr: No staged changes. Run git add first.",
-    );
+    vscode.window.showWarningMessage("Commitr: No staged changes. Run git add first.");
     return;
   }
 
   // Generate
-  setStatusBar("generating");
+  setStatusBar("generating", cfg.source);
 
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `Commitr: Generating with ${cfg.model}…`,
+      title: `Commitr: Generating with ${cfg.model}${cfg.source === ".commitrrc" ? " [.commitrrc]" : ""}…`,
       cancellable: true,
     },
     async (_progress, cancelToken) => {
@@ -391,13 +402,13 @@ async function runCommitr() {
         const raw = await callOllama(prompt, cfg, cancelToken);
 
         if (cancelToken.isCancellationRequested) {
-          setStatusBar("idle");
+          setStatusBar("idle", cfg.source);
           return;
         }
 
         const { subject, body } = parseOutput(raw);
 
-        // Validate - warn but don't block if model drifts
+        // Validate conventional format — warn but don't block
         if (
           cfg.commitStyle === "conventional" &&
           !isValidConventionalCommit(subject)
@@ -405,37 +416,30 @@ async function runCommitr() {
           const action = await vscode.window.showWarningMessage(
             `Commitr: Output may not follow Conventional Commits.\n"${subject}"`,
             "Use Anyway",
-            "Discard",
+            "Discard"
           );
           if (action !== "Use Anyway") {
-            setStatusBar("idle");
+            setStatusBar("idle", cfg.source);
             return;
           }
         }
 
-        // Build final message - include body only if generateBody is on,
-        // body exists, and diff spans enough files
+        // Include body only if generateBody on, body exists, diff spans 3+ files
         const finalMessage =
           cfg.generateBody && body && fileCount >= 3
             ? `${subject}\n\n${body}`
             : subject;
 
-        const wrote = writeToScmBox(finalMessage, repoPath);
-        setStatusBar("idle");
+        // Write to terminal as git commit command
+        writeToTerminal(finalMessage);
+        setStatusBar("idle", cfg.source);
+        vscode.window.showInformationMessage(`Commitr ✓  ${subject}`);
 
-        if (wrote) {
-          vscode.window.showInformationMessage(`Commitr ✓  ${subject}`);
-        } else {
-          await vscode.env.clipboard.writeText(finalMessage);
-          vscode.window.showInformationMessage(
-            `Commitr: Copied to clipboard — ${subject}`,
-          );
-        }
       } catch (err: unknown) {
-        setStatusBar("error");
+        setStatusBar("error", cfg.source);
 
         if (err instanceof Error && err.name === "AbortError") {
-          setStatusBar("idle");
+          setStatusBar("idle", cfg.source);
           return;
         }
 
@@ -443,37 +447,35 @@ async function runCommitr() {
           const action = await vscode.window.showErrorMessage(
             `Commitr: Model "${err.model}" is not pulled.`,
             "Copy Pull Command",
-            "Open Settings",
+            "Open Settings"
           );
           if (action === "Copy Pull Command") {
             await vscode.env.clipboard.writeText(`ollama pull ${err.model}`);
             vscode.window.showInformationMessage(
-              `Commitr: Copied "ollama pull ${err.model}" to clipboard.`,
+              `Commitr: Copied "ollama pull ${err.model}" to clipboard.`
             );
           } else if (action === "Open Settings") {
             vscode.commands.executeCommand(
               "workbench.action.openSettings",
-              "commitr.model",
+              "commitr.model"
             );
           }
           return;
         }
 
         const errMsg = err instanceof Error ? err.message : "Unknown error";
-        vscode.window.showErrorMessage(
-          `Commitr: Generation failed — ${errMsg}`,
-        );
+        vscode.window.showErrorMessage(`Commitr: Generation failed — ${errMsg}`);
       }
-    },
+    }
   );
 }
 
-// Lifecycle
+// Lifecycle 
 
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
     "commitr.generateMessage",
-    runCommitr,
+    runCommitr
   );
 
   const bar = getStatusBar();
