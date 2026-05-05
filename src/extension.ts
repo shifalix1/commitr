@@ -3,6 +3,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import * as fs from "fs";
 import * as path from "path";
+import { WalkthroughPanel } from "./WalkthroughPanel";
 
 const execAsync = promisify(exec);
 
@@ -508,11 +509,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Show walkthrough on first install only
   const hasOnboarded = context.globalState.get<boolean>("commitr.onboarded");
   if (!hasOnboarded) {
-    vscode.commands.executeCommand(
-      "workbench.action.openWalkthrough",
-      "shifalix1.commitr#commitr.gettingStarted",
-      false,
-    );
+    WalkthroughPanel.show(context.extensionUri);
     context.globalState.update("commitr.onboarded", true);
   }
 
