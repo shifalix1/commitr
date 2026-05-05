@@ -1,0 +1,13 @@
+{
+  "model": "qwen2.5:3b",
+  "generateBody": true,
+  "commitStyle": "conventional",
+
+  "scopeMappings": {
+    "src/auth": "auth",
+    "src/api": "api",
+    "src/components": "ui",
+    "src/pages": "pages",
+    "src/utils": "utils"
+  }
+}

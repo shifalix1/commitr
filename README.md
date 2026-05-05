@@ -1,71 +1,229 @@
-# commitr README
+<div align="center">
 
-This is the README for your extension "commitr". After writing up a brief description, we recommend including the following sections.
+<br />
 
-## Features
+# Commitr
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+### Your staged diff goes in. A real commit message comes out.
 
-For example if there is an image subfolder under your extension project workspace:
+Runs on your machine. No API keys. No internet. No nonsense.
 
-\!\[feature X\]\(images/feature-x.png\)
+<br />
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+![demo](images/demo.gif)
 
-## Requirements
+<br />
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+[![VS Code](https://img.shields.io/badge/VS%20Code-1.80+-blue?style=flat-square&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=shifalix1.commitr)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![Ollama](https://img.shields.io/badge/powered%20by-Ollama-black?style=flat-square)](https://ollama.com)
 
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+</div>
 
 ---
 
-## Following extension guidelines
+## What it does
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+You stage your files. You press one button. Commitr reads your diff, understands what actually changed, and runs:
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+```
+git commit -m "feat(auth): add token expiry check on protected routes"
+```
 
-## Working with Markdown
+directly in your terminal. No copy-pasting. No thinking about format. Just a clean, meaningful commit in your history.
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+## Why Commitr is different
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+Most tools generate commit messages. Commitr focuses on generating the _right_ commit message for how developers actually work.
 
-## For more information
+**1. Fully local. No API. No data leaving your machine.**
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+Your diff never leaves your system. No tokens, no billing, no rate limits. Works offline, even on a plane.
 
-**Enjoy!**
+**2. Built for messy, real workflows**
+
+Most tools assume clean, incremental commits. Commitr is designed for when you have 20 files staged after a sprint and need to make sense of them. It reads the diff and tells the story.
+
+**3. Scope is inferred, not guessed**
+
+Commitr understands your project structure and maps file paths to meaningful scopes automatically.
+`src/auth/login.ts → feat(auth)`
+No manual tagging, no thinking.
+
+**4. It focuses on meaning, not just format**
+
+Other tools often produce technically correct but useless messages.
+Commitr prioritizes what changed _and why_, not just which files were touched.
+
+**5. Zero friction**
+
+No copying. No pasting. No switching tabs.
+You stage files, trigger Commitr, and the commit runs directly in your terminal.
+
+---
+
+Commitr is not trying to be another AI feature.
+It solves a very specific problem: turning diffs into meaningful history without breaking your flow.
+
+---
+
+## Before you start
+
+Commitr uses [Ollama](https://ollama.com) to run AI locally. Two steps, one time only:
+
+**1. Install Ollama**
+
+Head to [ollama.com](https://ollama.com) and download it for your OS. Takes about a minute.
+
+**2. Pull the model and start Ollama**
+
+```bash
+ollama pull qwen2.5:3b
+ollama serve
+```
+
+That's it. You never have to think about this again.
+
+---
+
+## How to use it
+
+**Option 1 - Button in the Source Control panel**
+
+Open the Source Control tab, stage your files, and click the `$(git-commit)` icon in the panel header.
+
+**Option 2 - Keyboard shortcut**
+
+```
+Ctrl + Shift + Alt + C
+Cmd + Shift + Alt + C  (Mac)
+```
+
+**Option 3 - Command Palette**
+
+`Ctrl+Shift+P` and search `Commitr: Generate Commit Message`.
+
+---
+
+## What the output looks like
+
+Commitr follows [Conventional Commits](https://www.conventionalcommits.org/) by default:
+
+```
+feat(auth): add token expiry check on protected routes
+fix(ui): guard against null user prop in UserCard render
+refactor(api): simplify response pipeline with error boundary
+docs: add docker compose setup to readme
+chore: update esbuild and typescript devDependencies
+```
+
+Scope is inferred from your file paths automatically. Changed files all over the place? Scope gets omitted so the message stays clean.
+
+---
+
+## Solo dev or team? Both work.
+
+**Solo dev** - just install and go. Commitr picks up your VS Code settings and works out of the box.
+
+**Team** - drop a `.commitrrc` file in your project root and commit it. Every teammate gets the exact same config automatically. No one needs to touch their settings.
+
+```json
+{
+  "model": "qwen2.5:3b",
+  "commitStyle": "conventional",
+  "generateBody": true,
+  "scopeMappings": {
+    "src/auth": "auth",
+    "src/api": "api",
+    "src/components": "ui"
+  }
+}
+```
+
+When `.commitrrc` is active, the status bar shows `Commitr [.commitrrc]` so everyone knows the shared config is running.
+
+> `ollamaUrl` is always personal and never read from `.commitrrc`. Everyone can point to their own Ollama instance.
+
+---
+
+## Settings
+
+Search `Commitr` in VS Code Settings (`Ctrl+,`).
+
+| Setting                 | Default                  | What it does                                                                           |
+| ----------------------- | ------------------------ | -------------------------------------------------------------------------------------- |
+| `commitr.ollamaUrl`     | `http://localhost:11434` | Where Ollama is running. Change this if you use a custom port or remote host.          |
+| `commitr.model`         | `qwen2.5:3b`             | Any model you have pulled works here.                                                  |
+| `commitr.commitStyle`   | `conventional`           | Switch to `freeform` if you want the model to write freely without enforcing a format. |
+| `commitr.generateBody`  | `true`                   | Adds a short explanation body for diffs that touch 3 or more files.                    |
+| `commitr.scopeMappings` | `{}`                     | Map your custom paths to scope names (see below).                                      |
+
+### Custom scope mappings
+
+Got an unusual project structure? Tell Commitr how to map your paths:
+
+```json
+{
+  "commitr.scopeMappings": {
+    "src/payments": "payments",
+    "mobile/screens": "screens",
+    "infra/terraform": "infra"
+  }
+}
+```
+
+Custom mappings always win over the inferred ones.
+
+---
+
+## Using a different model
+
+Any instruction-tuned model on Ollama works. Pull it and update your setting:
+
+```bash
+ollama pull mistral
+```
+
+```json
+{ "commitr.model": "mistral" }
+```
+
+`qwen2.5:3b` is the default because it is fast, small, and produces clean conventional commit output with very little drift on the format.
+
+---
+
+## Troubleshooting
+
+**Ollama is not running**
+Run `ollama serve` in your terminal. Commitr will offer to copy this command for you when it detects Ollama is offline.
+
+**Model is not pulled**
+Run `ollama pull qwen2.5:3b`. If you trigger Commitr with a missing model, it will offer to copy the pull command for you.
+
+**No staged changes**
+Run `git add` on your files first. Commitr only reads what is staged (`git diff --cached`).
+
+**Output looks wrong or ignores the format**
+Commitr will warn you and ask if you want to use it anyway or discard it. If this happens often, try `freeform` mode or a larger model.
+
+**Button not showing in the SCM panel**
+Make sure you have a git repository open in your workspace and the built-in Git extension is active.
+
+**.commitrrc not being picked up**
+The file needs to be in the root of your workspace folder, at the same level as your `.git` directory. Commitr will show a warning toast if the file exists but cannot be parsed.
+
+---
+
+## Privacy
+
+Your staged diff is sent to a model running locally on your machine through Ollama. Nothing leaves your network. No data is collected, stored, or sent anywhere. Ever.
+
+---
+
+<div align="center">
+
+Made with way too many commits by [shifalix1](https://github.com/shifalix1)
+
+MIT License
+
+</div>

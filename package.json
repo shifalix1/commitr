@@ -1,10 +1,11 @@
 {
   "name": "commitr",
   "displayName": "Commitr",
-  "description": "Generate meaningful commit messages from your staged diff using a local AI. Private, offline, zero-config.",
+  "description": "AI-generated commit messages from your staged diff. Local. Private. Zero-config.",
   "version": "0.0.1",
-  "publisher": "Shifali",
+  "publisher": "shifalix1",
   "license": "MIT",
+  "icon": "images/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/shifalix1/commitr"
@@ -27,7 +28,8 @@
     "ollama",
     "conventional commits",
     "local ai",
-    "offline"
+    "offline",
+    "commit message"
   ],
   "activationEvents": [
     "onCommand:commitr.generateMessage"
@@ -81,7 +83,7 @@
         "commitr.model": {
           "type": "string",
           "default": "qwen2.5:3b",
-          "markdownDescription": "Ollama model to use for generation. Must be pulled first — run `ollama pull qwen2.5:3b`. Any instruction-tuned model works.",
+          "markdownDescription": "Ollama model to use. Must be pulled first — run `ollama pull qwen2.5:3b`. Any instruction-tuned model works.",
           "order": 2
         },
         "commitr.commitStyle": {
@@ -101,17 +103,50 @@
         "commitr.generateBody": {
           "type": "boolean",
           "default": true,
-          "description": "When enabled, generates a commit body for diffs spanning 3 or more files. Has no effect in freeform mode.",
+          "description": "When enabled, generates a commit body for diffs spanning 3 or more files.",
           "order": 4
         },
         "commitr.scopeMappings": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Custom path prefix → scope overrides. Keys are path prefixes, values are scope names.\n\nExample:\n```json\n{\n  \"src/auth\": \"auth\",\n  \"src/payments\": \"payments\",\n  \"mobile/screens\": \"screens\"\n}\n```",
+          "markdownDescription": "Custom path prefix to scope overrides.\n\nExample:\n```json\n{\n  \"src/auth\": \"auth\",\n  \"src/payments\": \"payments\"\n}\n```",
           "order": 5
         }
       }
-    }
+    },
+    "walkthroughs": [
+      {
+        "id": "commitr.gettingStarted",
+        "title": "Get started with Commitr",
+        "description": "Set up local AI commit messages in two minutes.",
+        "steps": [
+          {
+            "id": "commitr.step.installOllama",
+            "title": "Install Ollama",
+            "description": "Commitr uses Ollama to run AI locally on your machine. Nothing leaves your network.\n\n[Download Ollama](https://ollama.com)",
+            "media": {
+              "markdown": "walkthrough/step1.md"
+            }
+          },
+          {
+            "id": "commitr.step.pullModel",
+            "title": "Pull the model",
+            "description": "Pull the default model and start Ollama. Run this in your terminal:\n\n```\nollama pull qwen2.5:3b\nollama serve\n```\n\n[Open Terminal](command:workbench.action.terminal.new)",
+            "media": {
+              "markdown": "walkthrough/step2.md"
+            }
+          },
+          {
+            "id": "commitr.step.tryIt",
+            "title": "Try it",
+            "description": "Stage a file, then click the $(git-commit) button in the Source Control panel — or press Ctrl+Shift+Alt+C.\n\n[Open Source Control](command:workbench.view.scm)",
+            "media": {
+              "markdown": "walkthrough/step3.md"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
