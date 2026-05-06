@@ -326,7 +326,7 @@ function setStatusBar(state: "idle" | "generating" | "error", source?: string) {
 
   switch (state) {
     case "idle":
-      bar.text = "$(git-commit) Commitr";
+      bar.text = "$(heart) Commitr";
       bar.tooltip = `Commitr: Generate commit message${sourceLabel}`;
       bar.backgroundColor = undefined;
       break;
@@ -336,7 +336,7 @@ function setStatusBar(state: "idle" | "generating" | "error", source?: string) {
       bar.backgroundColor = undefined;
       break;
     case "error":
-      bar.text = "$(git-commit) Commitr";
+      bar.text = "$(heart) Commitr";
       bar.tooltip = `Commitr: Error — click to retry${sourceLabel}`;
       bar.backgroundColor = new vscode.ThemeColor(
         "statusBarItem.errorBackground",

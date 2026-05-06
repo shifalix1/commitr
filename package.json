@@ -3,7 +3,7 @@
   "displayName": "Commitr",
   "description": "AI-generated commit messages from your staged diff. Local. Private. Zero-config.",
   "version": "0.0.1",
-  "publisher": "shifalix1",
+  "publisher": "shifali",
   "license": "MIT",
   "icon": "images/icon.png",
   "repository": {
@@ -139,7 +139,7 @@
           {
             "id": "commitr.step.tryIt",
             "title": "Try it",
-            "description": "Stage a file, then click the $(git-commit) button in the Source Control panel — or press Ctrl+Shift+Alt+C.\n\n[Open Source Control](command:workbench.view.scm)",
+            "description": "Stage a file, then click the $(heart) button in the Source Control panel — or press Ctrl+Shift+Alt+C.\n\n[Open Source Control](command:workbench.view.scm)",
             "media": {
               "markdown": "walkthrough/step3.md"
             }
