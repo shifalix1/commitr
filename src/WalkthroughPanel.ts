@@ -11,7 +11,7 @@ export class WalkthroughPanel {
     this.panel = panel;
     this.extensionUri = extensionUri;
 
-    this.panel.webview.html = this.getHtml();
+    this.panel.webview.html = this.getHtml(panel.webview);
     this.panel.onDidDispose(() => {
       WalkthroughPanel.instance = undefined;
     });
@@ -45,13 +45,17 @@ export class WalkthroughPanel {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
+        localResourceRoots: [vscode.Uri.joinPath(extensionUri, "images")],
       },
     );
 
     WalkthroughPanel.instance = new WalkthroughPanel(panel, extensionUri);
   }
 
-  private getHtml(): string {
+  private getHtml(webview: vscode.Webview): string {
+    const iconUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "images", "icon.png"),
+    );
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -414,11 +418,8 @@ export class WalkthroughPanel {
 
   <div class="header">
     <div class="logo-row">
-      <!-- Inline heel SVG in brand colors -->
-      <svg class="logo-heel" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="38,20 52,65 28,75 22,75 22,80 45,80 45,75 54,75 70,75 70,80 78,80 78,75 54,75 52,65 62,30" fill="#b8d4e8"/>
-        <line x1="18" y1="80" x2="82" y2="80" stroke="#b8d4e8" stroke-width="2.5" stroke-linecap="round"/>
-      </svg>
+      <!-- actual extension icon -->
+      <img class="logo-heel" src="${iconUri}" alt="commitr" />
       <span class="brand">commitr</span>
     </div>
     <h1>Two minutes to your first AI commit</h1>
@@ -535,10 +536,7 @@ export class WalkthroughPanel {
 
   <!-- Done banner -->
   <div class="done-banner" id="doneBanner">
-    <svg class="heel-big" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <polygon points="38,20 52,65 28,75 22,75 22,80 45,80 45,75 54,75 70,75 70,80 78,80 78,75 54,75 52,65 62,30" fill="#b8d4e8"/>
-      <line x1="18" y1="80" x2="82" y2="80" stroke="#b8d4e8" stroke-width="2.5" stroke-linecap="round"/>
-    </svg>
+    <img class="heel-big" src="${iconUri}" alt="commitr" />
     <h2>You're all set.</h2>
     <p>Stage anything, press the button, watch it commit. That's all there is to it.</p>
     <div class="btn-row" style="justify-content: center;">

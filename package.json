@@ -47,8 +47,7 @@
       {
         "command": "commitr.generateMessage",
         "key": "ctrl+shift+alt+c",
-        "mac": "cmd+shift+alt+c",
-        "when": "scmProvider == git"
+        "mac": "cmd+shift+alt+c"
       }
     ],
     "menus": {
